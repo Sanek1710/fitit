@@ -3,6 +3,16 @@ import numpy as np
 import time
 im = Image.open("pixel-fitit-poles-n-holes.png")
 
+def prints(shape):
+  for row in shape:
+    for cell in row:
+      if cell >= 12:
+        print("\033[31m", end="")
+        cell //= 12
+      print(cell if cell != 0 else ' ', end=' ')
+      print("\033[0m", end="")
+    print()
+
 heads = (0, 0, 0, 255)
 necks = (63, 63, 116, 255)
 
@@ -26,8 +36,12 @@ holes_mask = (arr == holes).all(axis=2)
 res = np.zeros(arr.shape[:2], dtype=int)
 res[necks_mask] = 1
 res[heads_mask] = 2
-res[poles_mask] = 3
-res[holes_mask] = 4
+res[poles_mask] = 2#3
+res[holes_mask] = 0#4
+
+
+prints(res[:32, :32])
+exit(0)
 
 p = 0
 
@@ -94,15 +108,7 @@ def print_it(label, a):
     print(f'  "{s}", //')
   print("}),")
 
-def prints(shape):
-  for row in shape:
-    for cell in row:
-      if cell >= 12:
-        print("\033[31m", end="")
-        cell //= 12
-      print(cell if cell != 0 else ' ', end=' ')
-      print("\033[0m", end="")
-    print()
+
 
 
 shapes.sort(key=lambda x: len(x), reverse=True)
@@ -227,12 +233,14 @@ for s1 in range(len(shapes)):
 
       # print(len(lines))
     lines = list(set(lines))
-    if lines and len(lines) < 20:
+    if lines and len(lines):
       total_lines.extend(lines)
       print("\n".join(lines))
   # break
 # print(*shape, sep="\n")
 total_lines.append("}")
+
+print(shapes)
 
 with open("conns.dot", "w") as f:
   print("\n".join(total_lines), file=f)
