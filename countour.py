@@ -296,11 +296,11 @@ apply(filter_edges_limit(edges))
 
 countours = []
 rshapes = [
-  [np.rot90(sh, r) for r in range(4)]
+  [np.rot90(sh, -r % 4) for r in range(4)]
   for sh in shapes
 ]
 ridshapes = [
-  [np.rot90(sh, r) for r in range(4)]
+  [np.rot90(sh, -r % 4) for r in range(4)]
   for sh in idshapes
 ]
 for i in range(2):
@@ -360,10 +360,15 @@ for i1 in range(len(countours)):
         if beginning == ending:
           continue
         x2, y2 = rshapes[i2][r2].shape
-        xx = 1+e1+1
-        if (board[1:1+x2, xx:xx+y2] * ridshapes[i2][r2]).any():
+        b2, e2 = rnzids[i2][r2]
+
+        w2 = 1 + e1 + 1 - b2
+        try:
+          if (board[1:1+x2, w2:w2+y2] * ridshapes[i2][r2]).any():
+            continue
+        except:
           continue
-        board[1:1+x2, xx:xx+y2] += ridshapes[i2][r2]
+        board[1:1+x2, w2:w2+y2] += ridshapes[i2][r2]
         if not count_holes(board[:4]):
           count += 1
           edges.append(((i1, r1, len(countours[i1][r1]), countours[i1][r1][0]), 
@@ -371,14 +376,14 @@ for i1 in range(len(countours)):
           if show_limit:
             show_limit -= 1
             imdisplay(idshape_img(board))
-        board[1:1+x2, xx:xx+y2] -= ridshapes[i2][r2]
+        board[1:1+x2, w2:w2+y2] -= ridshapes[i2][r2]
 
     w -= len(countours[i1][r1])
     board[1:1+x1, 1:1+y1] -= ridshapes[i1][r1]
 
 len(edges)
 # %%
-with open("countour-edges.txt", "w") as f:
+with open("countour_edges.py", "w") as f:
   print("edges =", file=f)
   print(edges, file=f)
 
@@ -419,7 +424,7 @@ def try_it(w = 1):
           pass
   return False
 
-try_it()
+# try_it()
 
 imdisplay(idshape_img(board))
 
@@ -428,18 +433,112 @@ rshapes[1]
 
 # %%
 
-corners = [(40, 0), (53, 0), (3, 1), (5, 0), (11, 0), 
-           (12, 0), (13, 0), (21, 0), (23, 0), (25, 0), 
-           (28, 0), (33, 0), (38, 2), (42, 0), (42, 2),
-          (43, 0), (44, 0), (51, 0), (52, 0), (56, 0),
-          (57, 0), (37, 0)]
-for n, r in corners:
-  print((n, r), ",", sep="")
-  imdisplay(idshape_img(np.rot90(idshapes[n], r)))
+g = nx.DiGraph()
+g.add_edges_from(map(lambda x: (x[0][:2], x[1][:2]), edges))
+board = np.pad(np.zeros((35, 35), dtype=int), 1, "constant", constant_values=1)
+
+show_limit = 5
+corners = [(0, 2), (0, 1), (8, 1), (47, 2), (47, 1), (19, 1), (29, 2), 
+           (30, 2), (36, 2), (40, 2), (40, 1), (40, 0), (53, 2), (53, 1), 
+           (1, 2), (1, 1), (1, 0), (3, 1), (3, 0), (4, 1), (5, 0), (7, 0), 
+           (10, 2), (11, 1), (11, 0), (12, 2), (12, 1), (12, 0), (13, 2), 
+           (13, 1), (13, 0), (15, 1), (17, 2), (17, 1), (17, 0), (18, 2), 
+           (18, 1), (18, 0), (25, 2), (25, 1), (26, 1), (26, 0), (27, 0), 
+           (28, 2), (28, 1), (28, 0), (32, 1), (33, 2), (33, 1), (33, 0), 
+           (34, 1), (38, 1), (39, 2), (41, 2), (42, 0), (43, 1), (43, 0), 
+           (45, 2), (46, 2), (50, 1), (51, 1), (51, 0), (52, 2), (54, 2), 
+           (57, 0), (58, 1), (58, 0), (14, 1), (48, 2), (49, 2)]
+
+def put(i, r, w):
+  X, Y = rshapes[i][r].shape
+  try:
+    if (board[1:1+X, w:w+Y] * ridshapes[i][r]).any():
+      return False
+    board[1:1+X, w:w+Y] += ridshapes[i][r]
+    return True
+  except:
+    return False
+  return False
+
+def pop(i, r, w):
+  X, Y = rshapes[i][r].shape
+  board[1:1+X, w:w+Y] -= ridshapes[i][r]
+
+
+
+possible_corners = []
+w = 1
+for i, r in corners:
+  b1, e1 = rnzids[i][r]
+  put(i, r, w)
+
+  if ((i, r) not in g.nodes):
+    pop(i, r, w)
+    continue
+  successors = list(g.successors((i, r)))
+
+  rr = (r - 1) % 4
+  if ((i, rr) not in g.nodes):
+    pop(i, r, w)
+    continue
+  predessors = list(g.predecessors((i, rr)))
+  br1, er1 = rnzids[i][rr]
+
+  if count_holes(board[:-1, :-1]):
+    pop(i, r, w)
+    continue
+    pass
+  imdisplay(idshape_img(board))
+    # print((i, r), ",", sep="")
+  for i2, r2 in successors:
+    if i2 == i:
+      continue
+    b2, e2 = rnzids[i2][r2]
+    w2 = 1 + e1 + 1 - b2
+    if not put(i2, r2, w2):
+      continue
+
+    board = np.rot90(board, 3)
+    for i3, r3 in predessors:
+      if i3 == i2 or i3 == i:
+        continue
+      b3, e3 = rnzids[i3][r3]
+      w3 = 35 - br1 - 1 - e3
+      if not put(i3, r3, w3):
+        continue
+      if count_holes(board[:4]) or count_holes(board[:,-4:]):
+        pop(i3, r3, w3)
+        continue
+        pass
+      
+      if show_limit:
+        show_limit -= 1
+        # print((i, r), ",", sep="")
+        imdisplay(idshape_img(board))
+      pop(i3, r3, w3)
+      possible_corners.append((i ,r))
+      break
+
+    board = np.rot90(board, 1)
+    pop(i2, r2, w2)
+    break
+        
+  pop(i, r, w)
+  # break
+imdisplay(idshape_img(board))
+possible_corners
+
+# possible_corners
 # %%
 
+
+# %%
+for i, r in possible_corners:
+  print(i, r)
+  imdisplay(idshape_img(ridshapes[i][r]))
 not_corners = {
   (53, 0),  (5, 0), (11, 0),(13, 0),(21, 0),
   (23, 0),(25, 0),(38, 2),(42, 2),(43, 0),
   (44, 0),(52, 0),
 }
+possible_corners
